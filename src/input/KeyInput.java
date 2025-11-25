@@ -2,12 +2,9 @@ package input;
 
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.util.Arrays;
 import javax.swing.JOptionPane;
 import game.CanvasFrame;
 import game.Driver;
-import game.Window;
-import game.Window.SCREEN_STATE;
 import game.World;
 import graph.Graph.GraphType;
 import objects.Bullet;
@@ -99,8 +96,10 @@ public class KeyInput extends KeyAdapter {
 		
 		if (Driver.AI) {
 		
-			if (key == KeyEvent.VK_K)
+			if (key == KeyEvent.VK_K) {
 				worlds[CanvasFrame.currentWorldIndex].getPlayer().kill();
+				CanvasFrame.numberOfDeadAgents++;
+			}
 			
 			if (key == KeyEvent.VK_B)
 				CanvasFrame.showBoxes = !CanvasFrame.showBoxes;

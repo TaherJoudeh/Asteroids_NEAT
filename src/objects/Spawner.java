@@ -10,10 +10,10 @@ public class Spawner {
 	private GameObjectHandler gameObjectHandler;
 	private Random generateRandom;
 	
-	public final static int MAX_NUM_OF_ASTEROIDS = Driver.AI ? 5 : 20;
+	public final static int MAX_NUM_OF_ASTEROIDS = Driver.AI ? 15 : 20;
 
 	private int count = 1;
-	private final static double DEFAULT_SPAWN_TIMER = 300;
+	private final static double DEFAULT_SPAWN_TIMER = 170;
 	
 	private double spawnTimer = DEFAULT_SPAWN_TIMER;
 	
@@ -42,8 +42,11 @@ public class Spawner {
 				size = Asteroid.MEDIUM_Asteroid;
 			else size = Asteroid.SMALL_Asteroid;
 						
-			spawnLittleAsteroid(v1, size, asteroid.getCenter(), dir.getLength()*1.5f);
-			spawnLittleAsteroid(v2, size, asteroid.getCenter(), dir.getLength()*1.5f);
+//			spawnLittleAsteroid(v1, size, asteroid.getCenter(), dir.getLength()*1.1f);
+//			spawnLittleAsteroid(v2, size, asteroid.getCenter(), dir.getLength()*1.1f);
+			
+			spawnLittleAsteroid(v1, size, asteroid.getCenter(), dir.getLength());
+			spawnLittleAsteroid(v2, size, asteroid.getCenter(), dir.getLength());
 			
 		return true;
 		

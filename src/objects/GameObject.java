@@ -12,9 +12,7 @@ public abstract class GameObject {
 	private LinkedList<Vertex> vertices;
 	private GameObjectHandler gameObjectHandler;
 	private Vertex center;
-	
-	private double counter = 0;
-	
+		
 	public GameObject(float width, float height, GameObjectHandler gameObjectHandler) {
 		
 		this.width = width;
@@ -132,16 +130,7 @@ public abstract class GameObject {
 		}
 		return false;
 	}
-	
-	public boolean removeByCounter() {
-		if (counter >= 3) {
-			gameObjectHandler.removeGameObject(this);
-			return true;
-		}
-		
-		counter += 0.05;
-		return false;
-	}
+
 	
 	public void elliminate() {
 		if (this instanceof Asteroid)

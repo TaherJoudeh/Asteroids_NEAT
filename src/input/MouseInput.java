@@ -5,19 +5,13 @@ import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import game.CanvasFrame;
-import game.World;
 import graph.Graph;
 import graph.GraphHandler;
 
 public class MouseInput extends MouseMotionAdapter {
 
-	private World[] worlds;
 	
 	private Point point;
-	
-	public MouseInput(World[] worlds) {
-		this.worlds = worlds;
-	}
 	
 	public Point getPoint() { return point; }
 	

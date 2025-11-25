@@ -5,8 +5,6 @@ import java.awt.Graphics;
 import java.awt.geom.Rectangle2D;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.Scanner;
-
 import game.GameplayBox;
 
 public class Asteroid extends GameObject {
@@ -15,8 +13,8 @@ public class Asteroid extends GameObject {
 			MEDIUM_Asteroid = 18,
 			SMALL_Asteroid = 12;
 	
-	public final static float MAX_SPEED = 5;
-	public final static float MAX_INIT_SPEED = 1.5f;
+	public final static float MAX_SPEED = 0.7f;
+	public final static float MAX_INIT_SPEED = 0.3f;
 	
 	private final int NUMBER_OF_VERTECIES = 12;
 	
@@ -28,6 +26,9 @@ public class Asteroid extends GameObject {
 	private int size;
 	
 	private boolean isAlive;
+	
+	private double safeTimer = 1.2;
+	private boolean hasHitbox;
 		
 	public Asteroid(float width, float height, GameObjectHandler gameObjectHandler) {
 		super(width, height, gameObjectHandler);
@@ -39,6 +40,7 @@ public class Asteroid extends GameObject {
 		initVelocity(false, null , 0);
 		initWidthAndHeight();
 		gameObjectHandler.incrementAstroidNum();
+		hasHitbox = true;
 	}
 	
 	public Asteroid(float width, float height, GameObjectHandler gameObjectHandler, int size, Vertex origin, Vector dir, float speed) {
@@ -51,6 +53,7 @@ public class Asteroid extends GameObject {
 		initVelocity(true, dir, speed);
 		initWidthAndHeight();
 		gameObjectHandler.incrementAstroidNum();
+		hasHitbox = true;
 	}
 	
 	public Asteroid(float width, float height, GameObjectHandler gameObjectHandler, Vertex origin) {
@@ -77,9 +80,17 @@ public class Asteroid extends GameObject {
 	public double getVelocityDirection() { return Math.atan((double)velY/(double)velX); }
 	public double getAverageVelocity() { return Math.sqrt((velX*velX)+(velY*velY)); }
 	
+	public boolean hasHitbox() { return hasHitbox; }
+	
 	@Override
 	public void update() {
-
+		
+		if (!hasHitbox) {
+			safeTimer -= 0.005;
+			if (safeTimer <= 0)
+				hasHitbox = true;
+		}
+		
 		move();
 		teleport();
 		
@@ -147,10 +158,10 @@ public class Asteroid extends GameObject {
 			return;
 		}
 		
-		float minSpeed = 1f;
+		float minSpeed = MAX_INIT_SPEED;
 		
-		velX = (random.nextFloat()*(MAX_INIT_SPEED-minSpeed)+minSpeed);
-		velY = (random.nextFloat()*(MAX_INIT_SPEED-minSpeed)+minSpeed);
+		velX = (random.nextFloat()*(MAX_INIT_SPEED-minSpeed))+minSpeed;
+		velY = (random.nextFloat()*(MAX_INIT_SPEED-minSpeed))+minSpeed;
 		
 		velX = random.nextBoolean() ? velX : -velX;
 		velY = random.nextBoolean() ? velY : -velY;

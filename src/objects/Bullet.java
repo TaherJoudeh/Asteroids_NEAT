@@ -4,8 +4,6 @@ import java.awt.Graphics;
 import java.awt.geom.Line2D;
 import java.util.LinkedList;
 
-import game.Driver;
-
 public class Bullet extends GameObject {
 
 	private float x, y, velX, velY, width, height;
@@ -13,6 +11,7 @@ public class Bullet extends GameObject {
 	private Vector direction;
 	
 	private GameObjectHandler gameObjectHandler;
+	private double counter;
 			
 	public Bullet(float width, float height, float velX, float velY, GameObjectHandler gameObjectHandler) {
 		super(width, height, gameObjectHandler);
@@ -21,8 +20,8 @@ public class Bullet extends GameObject {
 	
 		player = gameObjectHandler.getPlayer();
 		
-		this.x = player.getVertecies().getFirst().x;
-		this.y = player.getVertecies().getFirst().y;
+		this.x = player.getVertecies().getFirst().x-player.getDirection().x;
+		this.y = player.getVertecies().getFirst().y-player.getDirection().y;
 		
 		direction = player.getDirection();
 		
@@ -39,8 +38,8 @@ public class Bullet extends GameObject {
 	}
 	
 	private void initVelocity() {
-		velX = 10f;
-		velY = 10f;
+		velX = 15f;
+		velY = 15f;
 	}
 	
 	@Override
@@ -51,9 +50,6 @@ public class Bullet extends GameObject {
 
 	@Override
 	public void render(Graphics g) {
-//		g.setColor(Color.WHITE);
-//		g.fillRect((int)(x-width/2), (int)(y-height/2), (int)width, (int)height);
-		
 		if (getVertecies().isEmpty())
 			return;
 		
@@ -74,9 +70,18 @@ public class Bullet extends GameObject {
 		else teleport();
 	}
 	
+	private boolean removeByCounter() {
+		if (counter >= 2
+				) {
+			gameObjectHandler.removeGameObject(this);
+			return true;
+		}
+		
+		counter += 0.05;
+		return false;
+	}
+	
 	private void moveVertices() {
-//		x += velX*direction.x;
-//		y += velY*direction.y;
 		for (Vertex v: getVertecies()) {
 			v.x += velX*direction.x;
 			v.y += velY*direction.y;
@@ -113,17 +118,18 @@ public class Bullet extends GameObject {
 				
 				switch (((Asteroid)go).getSize()) {
 				case Asteroid.SMALL_Asteroid:
-					player.scoreIncrement(10);
+//					player.scoreIncrement(10);
 					break;
 				case Asteroid.MEDIUM_Asteroid:
-					player.scoreIncrement(5);
+//					player.scoreIncrement(5);
 					break;
 				case Asteroid.BIG_Asteroid:
-					player.scoreIncrement(2);
+//					player.scoreIncrement(2);
 					break;
 				}
 				
 //				player.scoreIncrement();
+				player.setScore(player.getScore()+(int)(0.2*player.getCenter().getDistance(getCenter())));
 				player.incrementAsteroidsShot();
 				player.setLastBulletHit(true);
 				break;

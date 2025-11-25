@@ -6,20 +6,18 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Random;
-
 import game.CanvasFrame;
 import game.Driver;
 import game.GameplayBox;
-import neat.Agent;
+import main.java.neat.core.Agent;
 
 public class Player extends GameObject {
 	
 	public static boolean immortal = false;
 	
-	public final static double MAX_VEL = 5;
+	public final static double MAX_VEL = 6;
 	public final static double SURVIVAL_SECOND = 0.005;
 	
 	private Random random;
@@ -33,7 +31,7 @@ public class Player extends GameObject {
 	
 	private float size;
 	
-	private final float angle = Driver.AI ? (float)Math.PI/70 : (float)Math.PI/100;
+	private final float angle = Driver.AI ? (float)Math.PI/50 : (float)Math.PI/70;
 			
 	private float accelerationX = 0,
 			accelerationY = 0;
@@ -61,6 +59,7 @@ public class Player extends GameObject {
 	public final static float WHISKER_LENGTH = 500;
 	private Line2D.Float[] whiskers;
 	private float[] intersectionAsteroids = new float[8];
+//	private float[] intersectionAsteroids = new float[4];
 		
 	private boolean inDangerShouldEscape = false, inDangerShouldEvade = false;
 	private int dangerLevelEscaping;
@@ -70,8 +69,8 @@ public class Player extends GameObject {
 	private double noDangerTimes;
 	private double noDangerTimesCount;
 	
-	private double isolatedScore = 0;
-	private boolean isIsolated;
+	private double isolatedScore = 0, isolatedTimer = 0;
+	private boolean hasIsolated = false;
 	
 	private boolean lastBulletHit;
 	
@@ -89,9 +88,16 @@ public class Player extends GameObject {
 				rightThreatBox = new Rectangle2D.Double(GameplayBox.endX-threatBoxHeight+threatBoxHeight/2,0,threatBoxHeight,threatBoxWidth),
 				leftThreatBox = new Rectangle2D.Double(GameplayBox.x-threatBoxHeight/2,0,threatBoxHeight,threatBoxWidth);
 	
-	private double[] penaltyThreshold = {20,10,10,10};
+	private double[] penaltyThreshold = {7,7,5,5};
 	private double[] penaltyCounter = new double[4];
 	private double totalPenalty = 1;
+		
+	private boolean best;
+	
+	private double fitness;
+	private double accu_fitness;
+	
+	private Object[] closest, secondClosest;
 	
 	public Player(float width, float height, float velX, float velY,
 			GameObjectHandler gameObjectHandler) {
@@ -122,6 +128,9 @@ public class Player extends GameObject {
 	
 	public Agent getAgent() { return agent; }
 	public void setAgent(Agent agent) { this.agent = agent; }
+	
+	public boolean isBest() { return best; }
+	public void setBest(boolean best) { this.best = best; }
 	
 	public double getIsolatedScore() { return isolatedScore; }
 	
@@ -203,6 +212,11 @@ public class Player extends GameObject {
 	
 	public double getNoDangerTimes() { return noDangerTimes; }
 	
+	public double getFitness() { return fitness; }
+	
+	public double getAccuFitness() { return accu_fitness; }
+	public void resetAccuFitness() { accu_fitness = 0; }
+	
 	private void initWhiskers() {
 		
 		Vertex center = getVertecies().get(2);
@@ -227,6 +241,8 @@ public class Player extends GameObject {
 		Vector rightTop = new Vector(whisker1);
 		rightTop = Vector.normalize(Vector.rotate(rightTop, -Math.PI/4));
 		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[4],center.y+rightTop.y*intersectionAsteroids[4]);
+//		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[2],center.y+rightTop.y*intersectionAsteroids[2]);
+		
 		// Right Bottom
 		Vector rightBottom = new Vector(whisker2);
 		rightBottom = Vector.normalize(Vector.rotate(rightBottom, Math.PI/4));
@@ -235,12 +251,15 @@ public class Player extends GameObject {
 		Vector leftTop = new Vector(whisker1);
 		leftTop = Vector.normalize(Vector.rotate(leftTop, Math.PI/4));
 		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[6],center.y+leftTop.y*intersectionAsteroids[6]);
+//		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[3],center.y+leftTop.y*intersectionAsteroids[3]);
+		
 		// Left Bottom
 		Vector leftBottom = new Vector(whisker2);
 		leftBottom = Vector.normalize(Vector.rotate(leftBottom, -Math.PI/4));
 		Line2D.Float whisker8 = new Line2D.Float(center.x,center.y,center.x+leftBottom.x*intersectionAsteroids[7],center.y+leftBottom.y*intersectionAsteroids[7]);
 		
 		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker3,whisker4,whisker5,whisker6,whisker7,whisker8};
+//		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker5,whisker7};
 		
 	}
 	
@@ -264,6 +283,8 @@ public class Player extends GameObject {
 		Vector rightTop = new Vector(whisker1);
 		rightTop = Vector.normalize(Vector.rotate(rightTop, -Math.PI/4));
 		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[4],center.y+rightTop.y*intersectionAsteroids[4]);
+//		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[2],center.y+rightTop.y*intersectionAsteroids[2]);
+		
 		// Right Bottom
 		Vector rightBottom = new Vector(whisker2);
 		rightBottom = Vector.normalize(Vector.rotate(rightBottom, Math.PI/4));
@@ -272,6 +293,8 @@ public class Player extends GameObject {
 		Vector leftTop = new Vector(whisker1);
 		leftTop = Vector.normalize(Vector.rotate(leftTop, Math.PI/4));
 		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[6],center.y+leftTop.y*intersectionAsteroids[6]);
+//		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[3],center.y+leftTop.y*intersectionAsteroids[3]);
+		
 		// Left Bottom
 		Vector leftBottom = new Vector(whisker2);
 		leftBottom = Vector.normalize(Vector.rotate(leftBottom, -Math.PI/4));
@@ -279,6 +302,7 @@ public class Player extends GameObject {
 		
 		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker3,whisker4,whisker5,whisker6,whisker7,whisker8};
 		
+//		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker5,whisker7};
 	}
 	
 	@Override
@@ -292,6 +316,9 @@ public class Player extends GameObject {
 			getCenter().x += velX;
 			getCenter().y += velY;
 			
+			closest = getClosest();
+//			secondClosest = getSecondClosest();
+			
 			topThreatBox.x = getCenter().x-(threatBoxWidth/2);
 			downThreatBox.x = getCenter().x-(threatBoxWidth/2);
 			rightThreatBox.y = getCenter().y-(threatBoxWidth/2);
@@ -299,6 +326,11 @@ public class Player extends GameObject {
 			
 			counter += 0.01;
 			survivedSeconds += SURVIVAL_SECOND;
+			
+			if (survivedSeconds >= 300) {
+				isAlive = false;
+//				accu_fitness += 1e10;
+			}
 			
 			hitBox.x = getVertecies().get(2).x-200;
 			hitBox.y = getVertecies().get(2).y-200;
@@ -325,11 +357,6 @@ public class Player extends GameObject {
 			if (lifeSpan-LIFE_SPAN > highestLifeSpan)
 				highestLifeSpan = lifeSpan-LIFE_SPAN;
 			}
-			
-//			if (count%50 == 0) {
-//				aliveTime += 0.05;
-//				count = 1;
-//			}
 			
 			if (count%7 == 0 && counterForShooting < shootingRate)
 				counterForShooting += 50;
@@ -370,25 +397,10 @@ public class Player extends GameObject {
 					}
 				}
 				
-				/*
-				double survivalScore = 100*survivedSeconds;
-				double asteroidScore = 1000*asteroidsShot;
-				double accuracyBonus = getAccuracy() > 0.7 ? 2000*getAccuracy()*asteroidsShot : 0;
-				double movementScore = 100*(EscapingTimes+evadingTimes);
-				double distanceScore = 50*acceleratedTime;
-				double progressiveBonus = Math.min(survivedSeconds, 60) * asteroidsShot * 10;
-				double fitness = survivalScore
-						+ asteroidScore
-						+ accuracyBonus
-						+ movementScore
-						+ distanceScore
-						+ progressiveBonus;
-				*/
-				
-				double fitness = 2*survivedSeconds + 5*EscapingTimes + 2*evadingTimes + (10*getAccuracy()*asteroidsShot);
-				fitness /= totalPenalty;
-				
-				agent.setFitness(fitness);
+				fitness = 1 + 2*asteroidsShot;
+				fitness *= Math.pow(getAccuracy(),1.5);
+				fitness *= (1+5*survivedSeconds+2*noDangerTimes);
+																										
 			}
 			
 		}
@@ -421,19 +433,30 @@ public class Player extends GameObject {
 //			g2d.fill(leftThreatBox);
 			
 			if (Driver.AI) {
+
+				Vertex v1 = (Vertex)closest[1];
+//				Vertex v2 = (Vertex)secondClosest[1];
+
+				if (v1 != null) {
+					Vector vec1 = new Vector(v1.x-getCenter().x, v1.y-getCenter().y);
+					if (vec1.getLength() <= WHISKER_LENGTH) {
+						aproximityColor = new Color(1f,0f,0f,((WHISKER_LENGTH-vec1.getLength())/WHISKER_LENGTH));
+						g2d.setColor(aproximityColor);
+						g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v1.x, (int)v1.y);
+					}
+				}
 				/*
-				Vertex v = (Vertex)getClosest()[1];
-				Vertex v2 = (Vertex)getSecondClosest()[1];
-				Vertex v3 = (Vertex)getThirdClosest()[1];
-				Vertex v4 = (Vertex)getFourthClosest()[1];
-				if (v != null)
-					g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v.x, (int)v.y);
-				aproximityColor = new Color(1f,0f,0f,0.75f);
-				g2d.setColor(aproximityColor);
-				if (v2 != null)
-					g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v2.x, (int)v2.y);
-				aproximityColor = new Color(1f,0f,0f,0.50f);
-				g2d.setColor(aproximityColor);
+				if (v2 != null) {
+					Vector vec2 = new Vector(v2.x-getCenter().x, v2.y-getCenter().y);
+					if (vec2.getLength() <= WHISKER_LENGTH) {
+						aproximityColor = new Color(1f,0f,0f,((WHISKER_LENGTH-vec2.getLength())/WHISKER_LENGTH));
+						g2d.setColor(aproximityColor);
+						g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v2.x, (int)v2.y);
+					}
+				}
+				*/
+				
+				/*
 				if (v3 != null)
 					g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v3.x, (int)v3.y);
 				aproximityColor = new Color(1f,0f,0f,0.25f);
@@ -466,7 +489,7 @@ public class Player extends GameObject {
 		gameObjectHandler.onlyPlayer();
 	}
 	
-	public boolean isAccelerated() {
+	public boolean hasVelocity() {
 		if (velX == 0 && velY == 0)
 			return false;
 		return true;
@@ -474,40 +497,77 @@ public class Player extends GameObject {
 	
 	public double[] getUpdatedInputs() {
 		
-		double[] inp = new double[11];
+//		double[] inp = new double[23];
+		double[] inp = new double[18];
 		
 		int index = 0;
 
 		inp[index++] = (double)velX/MAX_VEL;
 		inp[index++] = (double)velY/MAX_VEL;
 		
-		/*
-		Vertex v = (Vertex)getClosest()[1];
+		Vertex v = (Vertex)closest[1];
 		Vector closestVector = null;
 		
-		if (v != null)
+		if (v != null) {
 			closestVector = new Vector(v.x-getCenter().x, v.y-getCenter().y);
 			
-		if (v == null)
+			double angleFirst = closestVector.getAngle();
+			double vDir = ((Asteroid)closest[0]).getDir().getAngle();
+			inp[index++] = Math.cos(angleFirst);
+			inp[index++] = Math.sin(angleFirst);
+			
+			inp[index++] = Math.cos(vDir);
+			inp[index++] = Math.sin(vDir);
+			
+			inp[index++] = (2*(WHISKER_LENGTH-Math.min(closestVector.getLength(), WHISKER_LENGTH))-(WHISKER_LENGTH))/WHISKER_LENGTH;
+		}else {
 			inp[index++] = 0;
-		else inp[index++] = closestVector.getAngle()/Math.PI;
-		inp[index++] = direction.getAngle()/Math.PI;
-//		inp[index++] = direction.getAngle();
-		 */
+			inp[index++] = 0;
+			inp[index++] = 0;
+			inp[index++] = 0;
+			inp[index++] = -1;
+		}
 		
+		/*
+		Vertex v1 = (Vertex)secondClosest[1];
+		Vector secondClosestVector = null;
+		
+		if (v1 != null) {
+			secondClosestVector = new Vector(v1.x-getCenter().x, v1.y-getCenter().y);
+			
+			double angleSecond = secondClosestVector.getAngle();
+			double vDir = ((Asteroid)secondClosest[0]).getDir().getAngle();
+//			inp[index++] = Math.cos(angleSecond);
+//			inp[index++] = Math.sin(angleSecond);
+//			 
+//			inp[index++] = Math.cos(vDir);
+//			inp[index++] = Math.sin(vDir);
+//			 
+//			inp[index++] = (2*(WHISKER_LENGTH-Math.min(secondClosestVector.getLength(), WHISKER_LENGTH))-(WHISKER_LENGTH))/WHISKER_LENGTH;
+		}else {
+//			inp[index++] = 0;
+//			inp[index++] = 0;
+//			inp[index++] = 0;
+//			inp[index++] = 0;
+//			inp[index++] = -1;
+		}
+		*/
+		
+		inp[index++] = Math.cos(direction.getAngle());
+		inp[index++] = Math.sin(direction.getAngle());
+				
 		for (int i = 0; i < intersectionAsteroids.length; i++)
-//			inp[index++] = (WHISKER_LENGTH-intersectionAsteroids[i])/(double)WHISKER_LENGTH;
-			inp[index++] = ((WHISKER_LENGTH-intersectionAsteroids[i])-(WHISKER_LENGTH*0.5))/WHISKER_LENGTH;
+			inp[index++] = (2*(WHISKER_LENGTH-intersectionAsteroids[i])-(WHISKER_LENGTH))/WHISKER_LENGTH;
 		
-		inp[index++] = (counterForShooting-(shootingRate*0.5))/shootingRate;
+		inp[index++] = (2*(counterForShooting/shootingRate))-1;
 		
 		return inp;
 		
 	}
 	
 	public void accelerate() {
-		accelerationX = Driver.AI ? direction.x/35f : direction.x/50f;
-		accelerationY = Driver.AI ? direction.y/35f : direction.y/50f;
+		accelerationX = Driver.AI ? direction.x/12f : direction.x/30f;
+		accelerationY = Driver.AI ? direction.y/12f : direction.y/30f;
 	
 		velX += accelerationX;
 		velY += accelerationY;
@@ -525,8 +585,8 @@ public class Player extends GameObject {
 		if (velX == 0 && velY == 0)
 			return;
 				
-		velX -= velocityAcceleration.x/150d;
-		velY -= velocityAcceleration.y/150d;
+		velX -= velocityAcceleration.x/70d;
+		velY -= velocityAcceleration.y/70d;
 				
 		if (Vector.getLength(velX, velY) < 1e-2) {
 			velX = 0;
@@ -631,6 +691,9 @@ public class Player extends GameObject {
 //		shipCenter.color = Color.YELLOW;
 		
 		Color colorOfShip = new Color(34,189,150);
+
+		if (best)
+			colorOfShip = new Color(237, 206, 52);
 		
 		front.color = corner1.color = corner2.color = shipCenter.color = colorOfShip;
 		
@@ -660,7 +723,8 @@ public class Player extends GameObject {
 		lastBulletHit = false;
 		
 		isolatedScore = 0;
-		isIsolated = false;
+		isolatedTimer = 0;
+		hasIsolated = false;
 		
 		shootComboCounter = 0;
 		
@@ -706,10 +770,11 @@ public class Player extends GameObject {
 		
 		for (int i = 0; i < gameObjectHandler.size(); i++) {
 			GameObject go = gameObjectHandler.get(i);
-			if (go instanceof Asteroid && collisionVectors(go)) {
+			if (go instanceof Asteroid && (((Asteroid) go).hasHitbox()) && collisionVectors(go)) {
 				isAlive = false;
 				CanvasFrame.numberOfDeadAgents++;
 				go.elliminate();
+				fitness *= 0.8d;
 				break;
 			}
 		}
@@ -717,6 +782,8 @@ public class Player extends GameObject {
 		if (!isAlive) {
 			gameObjectHandler.setIsActive(isAlive);
 			gameObjectHandler.onlyPlayer();
+			accu_fitness += fitness;
+			agent.setFitness(accu_fitness);
 			if (!Driver.AI)
 				startOver();
 		}
@@ -750,7 +817,8 @@ public class Player extends GameObject {
 	
 		Vertex vMin = null;
 		Asteroid ast = null;
-		double min_dist = Double.MAX_VALUE;
+		double min_dist = Double.POSITIVE_INFINITY;
+		Vertex origVertex = null;
 		
 		for (int i = 0; i < gameObjectHandler.size(); i++) {
 			if ( !(gameObjectHandler.get(i) instanceof Asteroid) ) continue;
@@ -758,13 +826,14 @@ public class Player extends GameObject {
 			Asteroid asteroid = (Asteroid) gameObjectHandler.get(i);
 			
 			for (Vertex vertex: asteroid.getVertecies()) {
-				
-				double dist = Point.distance(getCenter().x, getCenter().y, vertex.x, vertex.y);
-				
-				if (dist < min_dist) {
-					vMin = vertex;
-					min_dist = dist;
+	
+				Vertex closest = getClosest(vertex);
+				double closestDist = getCenter().getDistance(closest);
+				if (closestDist < min_dist) {
+					vMin = closest;
+					min_dist = closestDist;
 					ast = asteroid;
+					origVertex = vertex;
 				}
 				
 			}
@@ -772,121 +841,37 @@ public class Player extends GameObject {
 		}
 		
 		if (vMin == null)
-			return new Object [] {null,null};
+			return new Object [] {null,null,null,null};
 		
-		return new Object [] {ast,vMin};
+		return new Object [] {ast,vMin,min_dist,origVertex};
 		
 	}
 	
 	public Object[] getSecondClosest() {
 		
-		Vertex closest = (Vertex)getClosest()[1];
+		Vertex clo = (Vertex)closest[1];
+		
 		Vertex vMin = null;
 		Asteroid ast = null;
-		
-		if (closest == null)
-			return new Object [] {null,null};;
-			
-		double closest_dist = Point.distance(hitBox.getCenterX(), hitBox.getCenterY(), closest.x, closest.y);
-		double min_dist = Double.MAX_VALUE;
-		
-		for (int i = 0; i < gameObjectHandler.size(); i++) {
-			if ( !(gameObjectHandler.get(i) instanceof Asteroid)) continue;
-			
-			Asteroid asteroid = (Asteroid) gameObjectHandler.get(i);
-			
-			if (asteroid.getVertecies().contains(closest)) continue;
-			
-			for (Vertex vertex: asteroid.getVertecies()) {
 				
-				double dist = Point.distance(hitBox.getCenterX(), hitBox.getCenterY(), vertex.x, vertex.y);
-				
-				if (dist < min_dist && dist > closest_dist) {
-					vMin = vertex;
-					min_dist = dist;
-					ast = asteroid;
-				}
-				
-			}
-			
-		}
-		
-		if (vMin == null)
+		if (clo == null)
 			return new Object [] {null,null};
-		
-		return new Object [] {ast,vMin};
-		
-	}
-	
-	public Object[] getThirdClosest() {
-	
-		Vertex closest = (Vertex)getClosest()[1];
-		Vertex secondClosest = (Vertex)getSecondClosest()[1];
-		Vertex vMin = null;
-		Asteroid ast = null;
-		
-		if (secondClosest == null)
-			return new Object [] {null,null};;
-		
-		double closest_dist = Point.distance(hitBox.getCenterX(), hitBox.getCenterY(), secondClosest.x, secondClosest.y);
-		double min_dist = Double.MAX_VALUE;
+			
+		double min_dist = Double.POSITIVE_INFINITY;
 		
 		for (int i = 0; i < gameObjectHandler.size(); i++) {
 			if ( !(gameObjectHandler.get(i) instanceof Asteroid)) continue;
 			
 			Asteroid asteroid = (Asteroid) gameObjectHandler.get(i);
 			
-			if (asteroid.getVertecies().contains(secondClosest) || asteroid.getVertecies().contains(closest)) continue;
+			if (asteroid.getVertecies().contains((Vertex)closest[3])) continue;
 			
 			for (Vertex vertex: asteroid.getVertecies()) {
 				
-				double dist = Point.distance(hitBox.getCenterX(), hitBox.getCenterY(), vertex.x, vertex.y);
-				
-				if (dist < min_dist && dist > closest_dist) {
-					vMin = vertex;
-					min_dist = dist;
-					ast = asteroid;
-				}
-				
-			}
-			
-		}
-		
-		if (vMin == null)
-			return new Object [] {null,null};
-		
-		return new Object [] {ast,vMin};
-		
-	}
-	
-	public Object[] getFourthClosest() {
-		
-		Vertex closest = (Vertex)getClosest()[1];
-		Vertex secondClosest = (Vertex)getSecondClosest()[1];
-		Vertex thirdClosest = (Vertex)getThirdClosest()[1];
-		Vertex vMin = null;
-		Asteroid ast = null;
-		
-		if (thirdClosest == null)
-			return new Object [] {null,null};;
-		
-		double closest_dist = Point.distance(hitBox.getCenterX(), hitBox.getCenterY(), thirdClosest.x, thirdClosest.y);
-		double min_dist = Double.MAX_VALUE;
-		
-		for (int i = 0; i < gameObjectHandler.size(); i++) {
-			if ( !(gameObjectHandler.get(i) instanceof Asteroid)) continue;
-			
-			Asteroid asteroid = (Asteroid) gameObjectHandler.get(i);
-			
-			if (asteroid.getVertecies().contains(thirdClosest) || asteroid.getVertecies().contains(secondClosest) ||
-					asteroid.getVertecies().contains(closest)) continue;
-			
-			for (Vertex vertex: asteroid.getVertecies()) {
-				
-				double dist = Point.distance(hitBox.getCenterX(), hitBox.getCenterY(), vertex.x, vertex.y);
-				
-				if (dist < min_dist && dist > closest_dist) {
-					vMin = vertex;
+				Vertex secClosest = getClosest(vertex);
+				double dist = getCenter().getDistance(secClosest);
+				if (dist < min_dist && dist > (double)closest[2]) {
+					vMin = secClosest;
 					min_dist = dist;
 					ast = asteroid;
 				}
@@ -1007,7 +992,7 @@ public class Player extends GameObject {
 					Line2D.Float lineLeft = new Line2D.Float(v1.x-width,v1.y,v2.x-width,v2.y);
 				
 					Line2D.Float lineUpRight = new Line2D.Float(v1.x+width,v1.y-height,v2.x+width,v2.y-height);
-					Line2D.Float lineUpLeft = new Line2D.Float(v1.x-width,v1.y+height,v2.x-width,v2.y+height);
+					Line2D.Float lineUpLeft = new Line2D.Float(v1.x-width,v1.y-height,v2.x-width,v2.y-height);
 					Line2D.Float lineDownRight = new Line2D.Float(v1.x+width,v1.y+height,v2.x+width,v2.y+height);
 					Line2D.Float lineDownLeft = new Line2D.Float(v1.x-width,v1.y+height,v2.x-width,v2.y+height);				
 					
@@ -1081,8 +1066,8 @@ public class Player extends GameObject {
 
 	private void checkIfInDanger() {
 		
-		float inDangerRangeEscaping = WHISKER_LENGTH;
-		float inDangerRangeEvading = WHISKER_LENGTH;
+		float inDangerRangeEscaping = 0.5f*WHISKER_LENGTH;
+		float inDangerRangeEvading = 0.5f*WHISKER_LENGTH;
 		float thresholdFactor = 0.5f;
 		boolean hasEscaped = true;
 		boolean hasEvaded = true;
@@ -1096,7 +1081,7 @@ public class Player extends GameObject {
 			Vector shipAstVector = new Vector(ast.getCenter().x-getCenter().x,ast.getCenter().y-getCenter().y);
 			double lengthOfShipAstVector = shipAstVector.getLength();
 				
-			if (lengthOfShipAstVector > inDangerRangeEvading || !isAccelerated())
+			if (lengthOfShipAstVector > inDangerRangeEvading || !hasVelocity())
 				continue;
 				
 			Vector shipVelocityVector = new Vector(velX,velY);
@@ -1106,13 +1091,13 @@ public class Player extends GameObject {
 			double threshold = 0;
 			switch (ast.getSize()) {
 			case Asteroid.SMALL_Asteroid:
-				threshold = 0.02d;
+				threshold = 0.03d;
 				break;
 			case Asteroid.MEDIUM_Asteroid:
-				threshold = 0.04d;
+				threshold = 0.05d;
 				break;
 			case Asteroid.BIG_Asteroid:
-				threshold = 0.06d;
+				threshold = 0.07d;
 				break;
 			}
 			
@@ -1139,18 +1124,18 @@ public class Player extends GameObject {
 				
 			Vector astDir = new Vector(ast.getDir().x,ast.getDir().y);
 			
-			double dotProduct = Vector.dotProduct(astDir, shipAstVector) / (lengthOfShipAstVector);
+			double dotProduct = Vector.dotProduct(astDir, shipAstVector) / (lengthOfShipAstVector * astDir.getLength());
 				
 			double threshold = 0;
 			switch (ast.getSize()) {
 			case Asteroid.SMALL_Asteroid:
-				threshold = 0.02d;
+				threshold = 0.03d;
 				break;
 			case Asteroid.MEDIUM_Asteroid:
-				threshold = 0.04d;
+				threshold = 0.05d;
 				break;
 			case Asteroid.BIG_Asteroid:
-				threshold = 0.06d;
+				threshold = 0.07d;
 				break;
 			}
 			
@@ -1178,22 +1163,20 @@ public class Player extends GameObject {
 			EscapingTime++;
 			if (this.dangerLevelEscaping < dangerLevelEscaping)
 				this.dangerLevelEscaping = dangerLevelEscaping;
-				noDangerTimesCount++;
-		}else noDangerTimesCount = 0;
+			noDangerTimesCount = 0;
+		}else noDangerTimesCount++;
 		if (hasEscaped && !inDangerShouldEscape) {
 			EscapingTime = 0;
 			this.dangerLevelEscaping = 0;
 		}
 		if (hasEscaped && inDangerShouldEscape && EscapingTime >= 100) {
-//			if (isAccelerated())
-				EscapingTimes++;
-//				EscapingTimes += this.dangerLevelEscaping;
+			EscapingTimes++;
 			this.dangerLevelEscaping = 0;
 			EscapingTime = 0;
 			inDangerShouldEscape = false;
 		}
 		
-		if (noDangerTimesCount == 100) {
+		if (noDangerTimesCount == 200) {
 			noDangerTimes++;
 			noDangerTimesCount = 0;
 		}
@@ -1201,11 +1184,8 @@ public class Player extends GameObject {
 	}
 	
 	private void rewardForDistanceAndIsolation() {
-		
-		double maxThreshold = 0.3*WHISKER_LENGTH;
-		
-		double min = maxThreshold;
-		double sum = 0;
+				
+		double min = Double.MAX_VALUE;
 		for (int i = 0; i < gameObjectHandler.size(); i++) {
 			if (!(gameObjectHandler.get(i) instanceof Asteroid))
 				continue;
@@ -1213,35 +1193,54 @@ public class Player extends GameObject {
 			Vector distanceVector = new Vector(ast.getCenter().x-getCenter().x,ast.getCenter().y-getCenter().y);
 			double distance = distanceVector.getLength();
 			
-			if (distance > maxThreshold)
-				continue;
-			
 			if (distance < min)
 				min = distance;
 
-			sum += (distance*distance)/(maxThreshold*maxThreshold);
+		}
+
+		double upperThreshold = 0.3d;
+		
+		if (min > WHISKER_LENGTH*upperThreshold && !hasIsolated && !hasVelocity()) {
+			isolatedTimer++;
+			if (isolatedTimer >= 200) {
+				isolatedScore++;
+				hasIsolated = true;
+				isolatedTimer = 0;
+			}
+		}else {
+			isolatedTimer = 0;
+			hasIsolated = false;
 		}
 		
-		sum *= 1e-4;
+	}
+	
+	private Vertex getClosest(Vertex vertex) {
 		
-//		rewardOfDistance += (min/maxThreshold);
-		
-//		double threshold = 0.5*WHISKER_LENGTH;
-//		if (min < threshold)
-//			rewardOfDistance++;
-		rewardOfDistance += SURVIVAL_SECOND*((maxThreshold-min)/maxThreshold);
-		
-//		if (min < rewardOfDistance && min >= 50)
-//			rewardOfDistance = min;
-		
-		double upperThreshold = 0.2d;
-		
-		if (min > WHISKER_LENGTH*upperThreshold && Vector.getLength(velX, velY) < 0.5) {
-			if (!isIsolated) {
-				isolatedScore++;
-				isIsolated = true;
-			}
-		}else isIsolated = false;
+		Vertex center = getCenter();
+	    
+	    Vertex vMin = vertex;
+	    double min_dist = center.getDistance(vertex);
+
+	    Vertex[] wrappedPositions = {
+	        new Vertex(vertex.x, vertex.y - GameplayBox.height),           // Up
+	        new Vertex(vertex.x, vertex.y + GameplayBox.height),           // Down
+	        new Vertex(vertex.x + GameplayBox.width, vertex.y),            // Right
+	        new Vertex(vertex.x - GameplayBox.width, vertex.y),            // Left
+	        new Vertex(vertex.x + GameplayBox.width, vertex.y - GameplayBox.height),   // UpRight
+	        new Vertex(vertex.x - GameplayBox.width, vertex.y - GameplayBox.height),   // UpLeft
+	        new Vertex(vertex.x + GameplayBox.width, vertex.y + GameplayBox.height),   // DownRight
+	        new Vertex(vertex.x - GameplayBox.width, vertex.y + GameplayBox.height)    // DownLeft
+	    };
+
+	    for (Vertex wrapped : wrappedPositions) {
+	        double dist = center.getDistance(wrapped);
+	        if (dist < min_dist) {
+	            vMin = wrapped;
+	            min_dist = dist;
+	        }
+	    }
+
+	    return vMin;
 		
 	}
 	
