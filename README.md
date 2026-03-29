@@ -1,4 +1,4 @@
-# Asteroids AI — NEAT Algorithm
+# Asteroids_NEAT
 
 An AI agent that learns to play the classic **Asteroids** arcade game using the **NEAT** (NeuroEvolution of Augmenting Topologies) algorithm, built entirely in Java with the custom [NEAT4J](https://github.com/TaherJoudeh/NEAT4J) library.
 
