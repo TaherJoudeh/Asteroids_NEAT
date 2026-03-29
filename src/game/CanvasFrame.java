@@ -16,13 +16,11 @@ import graph.GraphHandler;
 import input.KeyInput;
 import input.MouseInput;
 import main.java.neat.config.ActivationConfig;
-import main.java.neat.config.ActivationConfigBuilder;
 import main.java.neat.config.AggregationConfig;
+import main.java.neat.config.ConfigFactory;
 import main.java.neat.config.NEATConfig;
 import main.java.neat.config.NEATConfig.CONNECTIVITY;
-import main.java.neat.config.NEATConfig.FITNESS_CRITERION;
 import main.java.neat.config.NEATConfig.SELECTION_TYPE;
-import main.java.neat.config.NEATConfig.SPECIES_FITNESS_FUNCTION;
 import main.java.neat.config.NEATConfigBuilder;
 import main.java.neat.core.Agent;
 import main.java.neat.core.Neat;
@@ -38,12 +36,12 @@ public class CanvasFrame extends Canvas implements Runnable {
 	private Thread thisThread;
 	private boolean isRunning;
 		
-	private int batchSize = Driver.VALIDATE ? 1 : 50;
+	private int batchSize = Driver.VALIDATE ? 1 : 100;
 	
 	public static World[] worlds;
-	private NEATConfig neatConfig;
+	public static NEATConfig neatConfig;
 	private GenomeVisualizer genomeVisualizer;
-	private Neat neat;
+	public static Neat neat;
 	
 	private KeyInput keyInput;
 	private MouseInput mouseInput;
@@ -53,7 +51,11 @@ public class CanvasFrame extends Canvas implements Runnable {
 	
 	public static int currentWorldIndex = 0;
 	public static int batch = 1;
-	public final static int EVALUATE_X_GENERATION = 2;
+	public final static int EVALUATE_X_GENERATION = Driver.VALIDATE ? 1 : 2;
+	public final static int SINGLE_SEED_PERIOD = 1;
+	
+	private int seed_counter = 0;
+	private long seed;
 	
 	public static boolean showHitBox = false, showBoxes = false,
 			paused = false, recievingInputs = true, rendering = true, showGraph = false,
@@ -67,6 +69,8 @@ public class CanvasFrame extends Canvas implements Runnable {
 	public static int numberOfDeadAgents = 0;
 	private int gen_counter = 0;
 	
+	private Random random = new Random();
+		
 	public CanvasFrame() {
 		
 		setFocusTraversalKeysEnabled(false);
@@ -94,12 +98,11 @@ public class CanvasFrame extends Canvas implements Runnable {
 			} else worlds = new World[neatConfig.getPopulationSize()];
 		} else worlds = new World[1];
 
-		long generatedSeed = generateSeed();
+		seed = generateSeed();
 		
 		Agent[] agents = neat.getPopulation();
 		for (int i = 0; i < worlds.length; i++)
-//			worlds[i] = new World(generateSeed());
-			worlds[i] = new World(generatedSeed);
+			worlds[i] = new World(seed);
 		
 		currentWorldIndex = 0;
 		
@@ -107,7 +110,7 @@ public class CanvasFrame extends Canvas implements Runnable {
 			for (int i = 0; i < worlds.length; i++)
 				worlds[i].getPlayer().setAgent(agents[i]);
 			if (Driver.VALIDATE)
-				worlds[0].getPlayer().getAgent().setGenome(GenomeFileHandler.loadGenome("genome.neat"));
+				worlds[0].getPlayer().getAgent().setGenome(GenomeFileHandler.loadGenome("Genomes/genome.neat"));
 			nodeGraph = new GraphHandler(GraphType.NODE);
 			rectangleGraph = new GraphHandler(GraphType.RECTANGLE);
 		}
@@ -120,61 +123,53 @@ public class CanvasFrame extends Canvas implements Runnable {
 	private void initAI() {
 		genomeVisualizer = new GenomeVisualizerBuilder().defaultGenomeVisuals().build();
 		AggregationConfig agC = new AggregationConfig(AGGREGATION_FUNCTION.SUM);
-		ActivationConfig acC = new ActivationConfigBuilder()
-				.addActivationFunction(ACTIVATION_FUNCTION.SIGMOID)
-				.setLinearActivationThreshold(0)
-				.setReluLeak(0.1)
-				.build();
-//		neatConfig = new NEATConfigBuilder(Driver.VALIDATE ? 1 : 200, 23, 4, agC,acC)
-		neatConfig = new NEATConfigBuilder(Driver.VALIDATE ? 1 : 300, 18, 4, agC,acC)
-				.setActivationDefault(ACTIVATION_FUNCTION.TANH)
-				.setStartingActivationFunctionForHiddenNodes(ACTIVATION_FUNCTION.TANH)
-				.setStartingActivationFunctionForOutputNodes(ACTIVATION_FUNCTION.TANH)
-				.setStartingAggregationFunction(AGGREGATION_FUNCTION.SUM)
-				.setFitnessCriterion(FITNESS_CRITERION.MAX)
-//				.setFeedForward(false)
-//				.setFitnessTermination(true)
-//				.setFitnessTerminationThreshold(3e10)
-				.setGenerationTermination(true)
-				.setGenerationTerminationThreshold(150)
-				.setBiasMaxValue(5)
-				.setBiasMinValue(-5)
-				.setBiasAdjustingRate(0.8)
-				.setBiasRandomizingRate(0.1)
-				.setBiasMutationPower(0.2)
-				.setBiasInitStdev(5)
-				.setWeightMaxValue(5)
-				.setWeightMinValue(-5)
-				.setWeightAdjustingRate(0.8)
-				.setWeightRandomizingRate(0.1)
-				.setWeightMutationPower(0.2)
-				.setWeightInitStdev(5)
-				.setCompatibilityExcessCoefficient(1)
-				.setCompatibilityDisjointCoefficient(1)
-				.setCompatibilityWeightCoefficient(0.5)
-				.setCompatibilityThreshold(4)
-				.setCompatabilityThresholdAdjustingFactor(0.2)
-				.setDynamicCompatabilityThreshold(true)
-				.setTargetNumberOfSpecies(12)
-				.setEnabledMutationRate(0.05)
-				.setEnabledRateForEnabled(-0.05)
-				.setInitConnectivity(CONNECTIVITY.PARTIAL_NO_DIRECT)
-				.setProbConnectInit(0.6)
-				.setSurvivalThreshold(0.4)
-				.setSelectionType(SELECTION_TYPE.TOURNAMENT)
-				.setTournamentSize(3)
-				.setStagnation(25)
-				.setSpeciesFitnessFunction(SPECIES_FITNESS_FUNCTION.MEAN)
-				.setSpeciesElitism(3)
-				.setElitism(2)
-				
-				.setMaxNumberOfHiddenNodes(12)
-				
-				.setProbAddConnection(0.1)
-				.setProbAddNode(0.06)
-				.setProbRecurrentConnection(0.12)
-				
-				.build();
+		ActivationConfig acC = ConfigFactory.createDefaultActivationConfig();
+		
+		neatConfig = new NEATConfigBuilder(Driver.VALIDATE ? 1 : 400, 22, 4, agC, acC)
+			    .setStartingActivationFunctionForHiddenNodes(ACTIVATION_FUNCTION.SIGMOID)
+			    .setActivationFunctionForOutputNodes(ACTIVATION_FUNCTION.SIGMOID)
+			    
+			    .setFeedForward(false)
+			    .setProbRecurrentConnection(0.4)
+			    
+			    .setWeightMaxValue(8)
+			    .setWeightMinValue(-8)
+			    .setWeightMutationPower(0.1)
+			    .setWeightAdjustingRate(0.8)
+			    .setWeightRandomizingRate(0.1)
+			    .setWeightInitStdev(1)
+			    
+			    .setBiasMaxValue(8)
+			    .setBiasMinValue(-8)
+			    .setBiasMutationPower(0.1)
+			    .setBiasAdjustingRate(0.8)
+			    .setWeightRandomizingRate(0.1)
+			    .setBiasInitStdev(1)
+			    
+			    .setCompatibilityThreshold(3.0)
+			    .setDynamicCompatibilityThreshold(true)
+			    .setCompatabilityThresholdAdjustingFactor(0.1)
+			    .setTargetNumberOfSpecies(15)
+			    .setCompatibilityExcessCoefficient(1.0)
+			    .setCompatibilityDisjointCoefficient(1.0)
+			    .setCompatibilityWeightCoefficient(0.4)
+			    
+			    .setSurvivalThreshold(0.4)
+			    .setSelectionType(SELECTION_TYPE.TOURNAMENT)
+			    .setTournamentSize(3)
+			    
+			    .setStagnation(20)
+			    .setSpeciesElitism(3)
+			    .setElitism(2)
+			    
+			    .setInitConnectivity(CONNECTIVITY.PARTIAL_NO_DIRECT)
+			    .setProbConnectInit(0.5)
+			    .setMaxNumberOfHiddenNodes(30)
+			    
+			    .setProbAddConnection(0.04)
+			    .setProbAddNode(0.01)
+			    
+			    .build();
 		
 		neat = new Neat(neatConfig);
 	}
@@ -214,6 +209,7 @@ public class CanvasFrame extends Canvas implements Runnable {
 		
 	}
 	
+	@SuppressWarnings("unused")
 	private synchronized void update() {
 		if (recievingInputs && !Driver.AI)
 			keyInput.update();
@@ -221,7 +217,7 @@ public class CanvasFrame extends Canvas implements Runnable {
 		if (Driver.AI) {
 			nodeGraph.update();
 			rectangleGraph.update();
-		}
+		}		
 		
 		for (int i = startIndex; i < endIndex && i < worlds.length; i++)
 			worlds[i].update();
@@ -331,7 +327,7 @@ public class CanvasFrame extends Canvas implements Runnable {
 			fontWidth = g2d.getFontMetrics().stringWidth(numOfAgents);
 			g2d.drawString(numOfAgents, GameplayBox.endX-fontWidth, g2d.getFontMetrics().getHeight());
 			
-			String threshold = "Compt. Thres: " + String.format("%.3f", neatConfig.getCompatabilityThreshold());
+			String threshold = "Compt. Thres: " + String.format("%.3f", neat.getCurrentCompatibilityThreshold());
 			fontWidth = g2d.getFontMetrics().stringWidth(threshold);
 			g2d.drawString(threshold, AIBox.x, g2d.getFontMetrics().getHeight());
 			
@@ -405,29 +401,22 @@ public class CanvasFrame extends Canvas implements Runnable {
 	}
 	
 	private void newGeneration() {
-		
+				
 		currentWorldIndex = 0;
 		gen_counter++;
-				
+		seed_counter++;
+			
 		if (gen_counter%EVALUATE_X_GENERATION == 0) {
-						
-			neat.evolve(true);
+		
+			if (Driver.VALIDATE)
+				neat.reset(true);
+			else neat.evolve(true);
 			Agent agent = neat.getBest();
-		
-			for (int i = 0; i < worlds.length; i++) {
-				if (agent == worlds[i].getPlayer().getAgent()) {
-					worlds[i].getPlayer().setBest(true);
-					System.out.println("Best exists in world: " + (i+1));
-				}
-				else worlds[i].getPlayer().setBest(false);
+
+			for (int i = 0; i < worlds.length; i++)
 				worlds[i].getPlayer().resetAccuFitness();
-			}
-		
-			if (neat.isTerminated()) {
-				agent.setFitness(0);
-				GenomeFileHandler.saveGenome(agent.getGenome(), "C:\\Users\\taher\\workspace_2\\Asteroids_NEAT","genome");
-				System.exit(0);
-			}
+
+			GenomeFileHandler.saveGenome(agent.getGenome(), "C:\\Users\\taher\\eclipse-workspace\\Asteroids_NEAT\\Genomes",((neat.getGeneration()-1)+""));
 		
 			nodeGraph.addValue(neat.getGeneration()-1, neat.getPopulationFitness());
 			rectangleGraph.addValue(neat.getGeneration()-1, neat.getPopulationFitness());
@@ -439,10 +428,12 @@ public class CanvasFrame extends Canvas implements Runnable {
 		startIndex = 0;
 		endIndex = batchSize;
 		
-		long seed = generateSeed();
 		for (int i = 0; i < worlds.length; i++) {
+			if (seed_counter >= SINGLE_SEED_PERIOD) {
+				seed = generateSeed();
+				seed_counter = 0;
+			}
 			worlds[i].setSeed(seed);
-//			worlds[i].setSeed(generateSeed());
 			worlds[i].startAgain();
 			worlds[i].getPlayer().startOver();
 			worlds[i].getHandler().setIsActive(true);
@@ -457,7 +448,7 @@ public class CanvasFrame extends Canvas implements Runnable {
 	}
 	
 	public long generateSeed() {
-		return (long)((2*Math.random()-1)*1000000000);
+		return random.nextLong();
 	}
 	
 	public Graph getNodeGraph() { return nodeGraph.getGraph(); }

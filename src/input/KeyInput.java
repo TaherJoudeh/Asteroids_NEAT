@@ -168,9 +168,9 @@ public class KeyInput extends KeyAdapter {
 		else player.decelerate();
 		
 		if (rotationState == ROTATE_RIGHT)
-			player.rotate(true,accelerated);
+			player.rotate(true);
 		if (rotationState == ROTATE_LEFT)
-			player.rotate(false,accelerated);
+			player.rotate(false);
 		
 	}
 	

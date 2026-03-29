@@ -3,7 +3,6 @@ package objects;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.util.LinkedList;
@@ -18,7 +17,7 @@ public class Player extends GameObject {
 	public static boolean immortal = false;
 	
 	public final static double MAX_VEL = 6;
-	public final static double SURVIVAL_SECOND = 0.005;
+	public final static double UNIT = 0.005;
 	
 	private Random random;
 	
@@ -41,7 +40,7 @@ public class Player extends GameObject {
 	private GameObjectHandler gameObjectHandler;
 	
 	private int score, shootedAsteroids;
-	private double acceleratedTime, aliveTime, rotateTime, survivedSeconds, totalTimeSurvived;
+	private double acceleratedTime, aliveTime, survivedSeconds, totalTimeSurvived;
 	private double rewardOfDistance = 0;
 	
 	private int count = 1;
@@ -54,12 +53,10 @@ public class Player extends GameObject {
 	
 	private Rectangle2D.Float hitBox;
 	
-	private boolean hasRotated = false;
-	
 	public final static float WHISKER_LENGTH = 500;
-	private Line2D.Float[] whiskers;
-	private float[] intersectionAsteroids = new float[8];
-//	private float[] intersectionAsteroids = new float[4];
+	public final static int NUMBER_OF_WHISKERS = 16;
+	private Line2D.Float[] whiskers = new Line2D.Float[NUMBER_OF_WHISKERS];
+	private float[] intersectionAsteroids = new float[NUMBER_OF_WHISKERS];
 		
 	private boolean inDangerShouldEscape = false, inDangerShouldEvade = false;
 	private int dangerLevelEscaping;
@@ -69,17 +66,14 @@ public class Player extends GameObject {
 	private double noDangerTimes;
 	private double noDangerTimesCount;
 	
-	private double isolatedScore = 0, isolatedTimer = 0;
-	private boolean hasIsolated = false;
-	
 	private boolean lastBulletHit;
 	
 	private final static int MAX_SHOT_COMBO_COUNTER = 2;
 	private int shootComboCounter = 0;
 		
-	private int shootingRate = Driver.AI ? 500 : 300;
+	private final int DEFAULT_SHOOTING_RATE = Driver.AI ? 500 : 300;
+	private int shootingRate = DEFAULT_SHOOTING_RATE;
 	private double counterForShooting = 0;
-	private double lastingReward;
 	
 	private int threatBoxWidth = 300, threatBoxHeight = 300;
 	
@@ -87,17 +81,13 @@ public class Player extends GameObject {
 				downThreatBox = new Rectangle2D.Double(0,GameplayBox.endY-threatBoxHeight+threatBoxHeight/2,threatBoxWidth,threatBoxHeight),
 				rightThreatBox = new Rectangle2D.Double(GameplayBox.endX-threatBoxHeight+threatBoxHeight/2,0,threatBoxHeight,threatBoxWidth),
 				leftThreatBox = new Rectangle2D.Double(GameplayBox.x-threatBoxHeight/2,0,threatBoxHeight,threatBoxWidth);
-	
-	private double[] penaltyThreshold = {7,7,5,5};
-	private double[] penaltyCounter = new double[4];
-	private double totalPenalty = 1;
-		
-	private boolean best;
-	
+			
 	private double fitness;
 	private double accu_fitness;
 	
-	private Object[] closest, secondClosest;
+	private double cooldownShot;
+	
+	private Object[] closest;
 	
 	public Player(float width, float height, float velX, float velY,
 			GameObjectHandler gameObjectHandler) {
@@ -120,20 +110,13 @@ public class Player extends GameObject {
 		randomizeDirection();
 		
 		createVertices();
-
-		initWhiskers();
 		
 		hitBox = new Rectangle2D.Float(getCenter().x-200, getCenter().y-200,400,400);
 	}
 	
 	public Agent getAgent() { return agent; }
 	public void setAgent(Agent agent) { this.agent = agent; }
-	
-	public boolean isBest() { return best; }
-	public void setBest(boolean best) { this.best = best; }
-	
-	public double getIsolatedScore() { return isolatedScore; }
-	
+		
 	public int getShootComboCounter() { return shootComboCounter; }
 	public void setShootComboCounter(int shootComboCounter) { this.shootComboCounter = shootComboCounter; }
 	public void resetShootComboCounter() { shootComboCounter = 0; }
@@ -198,9 +181,6 @@ public class Player extends GameObject {
 	public boolean isAlive() { return isAlive; }
 	public void setIsAlive(boolean isAlive) { this.isAlive = isAlive; }
 	
-	public boolean hasRotated() { return hasRotated; }
-	public double getRotateTime() { return rotateTime; }
-	
 	public double getLifeSpan() { return lifeSpan; }
 	public double getMinLifeSpan() { return minLifeSpan; }
 	
@@ -208,7 +188,6 @@ public class Player extends GameObject {
 	
 	public double getEscapingTimes() { return EscapingTimes; }
 	public double getEvadingTimes() { return evadingTimes; }
-	public double getLastingReward() { return lastingReward; }
 	
 	public double getNoDangerTimes() { return noDangerTimes; }
 	
@@ -217,92 +196,22 @@ public class Player extends GameObject {
 	public double getAccuFitness() { return accu_fitness; }
 	public void resetAccuFitness() { accu_fitness = 0; }
 	
-	private void initWhiskers() {
+	private void updateWhiskers(boolean resetLengths) {
 		
-		Vertex center = getVertecies().get(2);
-		double length = WHISKER_LENGTH;
-		
-		for (int i = 0; i < intersectionAsteroids.length; i++)
-			intersectionAsteroids[i] = (float)length;
-		
-		// Front
-		Line2D.Float whisker1 = new Line2D.Float(center.x,center.y,center.x+(direction.x*intersectionAsteroids[0]),center.y+(direction.y*intersectionAsteroids[0]));
-		// Back
-		Line2D.Float whisker2 = new Line2D.Float(center.x,center.y,center.x+(-direction.x*intersectionAsteroids[1]),center.y+(-direction.y*intersectionAsteroids[1]));
-		// Right
-		Vector right = new Vector(whisker1);
-		right = Vector.normalize(Vector.rotate(right, -Math.PI/2));
-		Line2D.Float whisker3 = new Line2D.Float(center.x,center.y,center.x+right.x*intersectionAsteroids[2],center.y+right.y*intersectionAsteroids[2]);
-		// Left
-		Vector left = new Vector(whisker1);
-		left = Vector.normalize(Vector.rotate(left, Math.PI/2));
-		Line2D.Float whisker4 = new Line2D.Float(center.x,center.y,center.x+left.x*intersectionAsteroids[3],center.y+left.y*intersectionAsteroids[3]);
-		// Right Top
-		Vector rightTop = new Vector(whisker1);
-		rightTop = Vector.normalize(Vector.rotate(rightTop, -Math.PI/4));
-		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[4],center.y+rightTop.y*intersectionAsteroids[4]);
-//		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[2],center.y+rightTop.y*intersectionAsteroids[2]);
-		
-		// Right Bottom
-		Vector rightBottom = new Vector(whisker2);
-		rightBottom = Vector.normalize(Vector.rotate(rightBottom, Math.PI/4));
-		Line2D.Float whisker6 = new Line2D.Float(center.x,center.y,center.x+rightBottom.x*intersectionAsteroids[5],center.y+rightBottom.y*intersectionAsteroids[5]);
-		// Left Top
-		Vector leftTop = new Vector(whisker1);
-		leftTop = Vector.normalize(Vector.rotate(leftTop, Math.PI/4));
-		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[6],center.y+leftTop.y*intersectionAsteroids[6]);
-//		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[3],center.y+leftTop.y*intersectionAsteroids[3]);
-		
-		// Left Bottom
-		Vector leftBottom = new Vector(whisker2);
-		leftBottom = Vector.normalize(Vector.rotate(leftBottom, -Math.PI/4));
-		Line2D.Float whisker8 = new Line2D.Float(center.x,center.y,center.x+leftBottom.x*intersectionAsteroids[7],center.y+leftBottom.y*intersectionAsteroids[7]);
-		
-		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker3,whisker4,whisker5,whisker6,whisker7,whisker8};
-//		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker5,whisker7};
-		
-	}
-	
-	private void updateWhiskersLength() {
+		if (resetLengths)
+			for (int i = 0; i < NUMBER_OF_WHISKERS; i++)
+				intersectionAsteroids[i] = WHISKER_LENGTH;
 		
 		Vertex center = getVertecies().get(2);
 		
-		// Front
-		Line2D.Float whisker1 = new Line2D.Float(center.x,center.y,center.x+(direction.x*intersectionAsteroids[0]),center.y+(direction.y*intersectionAsteroids[0]));
-		// Back
-		Line2D.Float whisker2 = new Line2D.Float(center.x,center.y,center.x+(-direction.x*intersectionAsteroids[1]),center.y+(-direction.y*intersectionAsteroids[1]));
-		// Right
-		Vector right = new Vector(whisker1);
-		right = Vector.normalize(Vector.rotate(right, -Math.PI/2));
-		Line2D.Float whisker3 = new Line2D.Float(center.x,center.y,center.x+right.x*intersectionAsteroids[2],center.y+right.y*intersectionAsteroids[2]);
-		// Left
-		Vector left = new Vector(whisker1);
-		left = Vector.normalize(Vector.rotate(left, Math.PI/2));
-		Line2D.Float whisker4 = new Line2D.Float(center.x,center.y,center.x+left.x*intersectionAsteroids[3],center.y+left.y*intersectionAsteroids[3]);
-		// Right Top
-		Vector rightTop = new Vector(whisker1);
-		rightTop = Vector.normalize(Vector.rotate(rightTop, -Math.PI/4));
-		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[4],center.y+rightTop.y*intersectionAsteroids[4]);
-//		Line2D.Float whisker5 = new Line2D.Float(center.x,center.y,center.x+rightTop.x*intersectionAsteroids[2],center.y+rightTop.y*intersectionAsteroids[2]);
+		whiskers[0] = new Line2D.Float(center.x,center.y,center.x+(direction.x*intersectionAsteroids[0]),center.y+(direction.y*intersectionAsteroids[0]));
+		Vector vector = new Vector(whiskers[0]);
 		
-		// Right Bottom
-		Vector rightBottom = new Vector(whisker2);
-		rightBottom = Vector.normalize(Vector.rotate(rightBottom, Math.PI/4));
-		Line2D.Float whisker6 = new Line2D.Float(center.x,center.y,center.x+rightBottom.x*intersectionAsteroids[5],center.y+rightBottom.y*intersectionAsteroids[5]);
-		// Left Top
-		Vector leftTop = new Vector(whisker1);
-		leftTop = Vector.normalize(Vector.rotate(leftTop, Math.PI/4));
-		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[6],center.y+leftTop.y*intersectionAsteroids[6]);
-//		Line2D.Float whisker7 = new Line2D.Float(center.x,center.y,center.x+leftTop.x*intersectionAsteroids[3],center.y+leftTop.y*intersectionAsteroids[3]);
+		for (int i = 1; i < NUMBER_OF_WHISKERS; i++) {
+			vector = Vector.normalize(Vector.rotate(vector, Math.PI/(0.5*NUMBER_OF_WHISKERS)));
+			whiskers[i] = new Line2D.Float(center.x,center.y,center.x+(vector.x*intersectionAsteroids[i]),center.y+(vector.y*intersectionAsteroids[i]));
+		}
 		
-		// Left Bottom
-		Vector leftBottom = new Vector(whisker2);
-		leftBottom = Vector.normalize(Vector.rotate(leftBottom, -Math.PI/4));
-		Line2D.Float whisker8 = new Line2D.Float(center.x,center.y,center.x+leftBottom.x*intersectionAsteroids[7],center.y+leftBottom.y*intersectionAsteroids[7]);
-		
-		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker3,whisker4,whisker5,whisker6,whisker7,whisker8};
-		
-//		whiskers = new Line2D.Float [] {whisker1,whisker2,whisker5,whisker7};
 	}
 	
 	@Override
@@ -317,7 +226,6 @@ public class Player extends GameObject {
 			getCenter().y += velY;
 			
 			closest = getClosest();
-//			secondClosest = getSecondClosest();
 			
 			topThreatBox.x = getCenter().x-(threatBoxWidth/2);
 			downThreatBox.x = getCenter().x-(threatBoxWidth/2);
@@ -325,12 +233,7 @@ public class Player extends GameObject {
 			leftThreatBox.y = getCenter().y-((threatBoxWidth/2));
 			
 			counter += 0.01;
-			survivedSeconds += SURVIVAL_SECOND;
-			
-			if (survivedSeconds >= 300) {
-				isAlive = false;
-//				accu_fitness += 1e10;
-			}
+			survivedSeconds += UNIT;
 			
 			hitBox.x = getVertecies().get(2).x-200;
 			hitBox.y = getVertecies().get(2).y-200;
@@ -344,11 +247,6 @@ public class Player extends GameObject {
 			if (lifeSpan <= 0) {
 				lifeSpan = 0;
 				kill();
-			}
-			
-			if (count%6000 == 0) {
-				lastingReward += 30;
-				count = 1;
 			}
 			
 			if (lifeSpan < minLifeSpan)
@@ -366,45 +264,45 @@ public class Player extends GameObject {
 			checkIfInDanger();
 			getWhiskerCollisionOptimized();
 			rewardForDistanceAndIsolation();
-			updateWhiskersLength();
 
 			if (Driver.AI) {
-				boolean[] dec = agent.decide(getUpdatedInputs());
-				if (dec[0]) {
+				double[] inputs = getUpdatedInputs();
+				
+				double[] dec = agent.think(inputs);
+				if (dec[0] > 0.5)
 					accelerate();
-					penaltyCounter[0] += SURVIVAL_SECOND;
-				}else {
+				else
 					decelerate();
-					penaltyCounter[0] = 0;
-				}
-				if (dec[1]) {
+				
+				if (dec[1] > 0.5)
 					shoot();
-					penaltyCounter[1] += SURVIVAL_SECOND;
-				} else penaltyCounter[1] = 0;
-				if (dec[2]) {
-					rotate(true, true);
-					penaltyCounter[2] += SURVIVAL_SECOND;
-				} else penaltyCounter[2] = 0;
-				if (dec[3]) {
-					rotate(false, true);
-					penaltyCounter[3] += SURVIVAL_SECOND;
-				} else penaltyCounter[3] = 0;
 				
-				for (int i = 0; i < 4; i++) {
-					if (penaltyCounter[i] >= penaltyThreshold[i]) {
-						penaltyCounter[i] = 0;
-						totalPenalty++;
-					}
-				}
+				if (dec[2] > 0.5 && dec[2] > dec[3])
+					rotate(true);
+				else if (dec[3] > 0.5 && dec[3] > dec[2])
+					rotate(false);
 				
-				fitness = 1 + 2*asteroidsShot;
-				fitness *= Math.pow(getAccuracy(),1.5);
-				fitness *= (1+5*survivedSeconds+2*noDangerTimes);
-																										
+				calculateFitness();
+												
 			}
 			
 		}
 		
+	}
+	
+	private void calculateFitness() {
+		double accuracy = (0.4d + 0.6d*Math.pow(getAccuracy(),2));
+		
+		fitness = 1 + survivedSeconds;
+		fitness *= (1+500*noDangerTimes);
+	    
+	    fitness += 200*(asteroidsShot*asteroidsShot) * accuracy;
+	    
+	    if (acceleratedTime == 0)
+	    	fitness *= 0.2d;
+	    
+	    double cooldownProp = cooldownShot / (survivedSeconds + UNIT);
+	    fitness *= (0.2d + 0.8d * (1d - cooldownProp));
 	}
 	
 	@Override
@@ -424,50 +322,15 @@ public class Player extends GameObject {
 		g2d.setColor(aproximityColor);
 		
 		if (CanvasFrame.showHitBox) {
-//			g2d.draw(hitBox);
 			
 			g2d.setColor(new Color(255,0,0,50));
-//			g2d.fill(topThreatBox);
-//			g2d.fill(downThreatBox);
-//			g2d.fill(rightThreatBox);
-//			g2d.fill(leftThreatBox);
 			
 			if (Driver.AI) {
-
-				Vertex v1 = (Vertex)closest[1];
-//				Vertex v2 = (Vertex)secondClosest[1];
-
-				if (v1 != null) {
-					Vector vec1 = new Vector(v1.x-getCenter().x, v1.y-getCenter().y);
-					if (vec1.getLength() <= WHISKER_LENGTH) {
-						aproximityColor = new Color(1f,0f,0f,((WHISKER_LENGTH-vec1.getLength())/WHISKER_LENGTH));
-						g2d.setColor(aproximityColor);
-						g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v1.x, (int)v1.y);
-					}
-				}
-				/*
-				if (v2 != null) {
-					Vector vec2 = new Vector(v2.x-getCenter().x, v2.y-getCenter().y);
-					if (vec2.getLength() <= WHISKER_LENGTH) {
-						aproximityColor = new Color(1f,0f,0f,((WHISKER_LENGTH-vec2.getLength())/WHISKER_LENGTH));
-						g2d.setColor(aproximityColor);
-						g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v2.x, (int)v2.y);
-					}
-				}
-				*/
-				
-				/*
-				if (v3 != null)
-					g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v3.x, (int)v3.y);
-				aproximityColor = new Color(1f,0f,0f,0.25f);
-				g2d.setColor(aproximityColor);
-				if (v4 != null)
-					g2d.drawLine((int)hitBox.getCenterX(), (int)hitBox.getCenterY(), (int)v4.x, (int)v4.y);
-				*/
 				
 				g2d.setColor(new Color(1f,0f,0f,0.35f));
 				for (int i = 0; i < whiskers.length; i++)
-					g2d.draw(whiskers[i]);
+					if (whiskers[i] != null)
+						g2d.draw(whiskers[i]);
 					
 			}
 		}
@@ -477,10 +340,12 @@ public class Player extends GameObject {
 
 	public void shoot() {
 		if (counterForShooting >= shootingRate) {
-			bulletsShot++;
 			new Bullet(2,2,0, 0, gameObjectHandler);
 			counterForShooting = 0;
-		}
+			
+			bulletsShot++;
+		}else cooldownShot += UNIT;
+		
 	}
 	
 	public void kill() {
@@ -497,69 +362,24 @@ public class Player extends GameObject {
 	
 	public double[] getUpdatedInputs() {
 		
-//		double[] inp = new double[23];
-		double[] inp = new double[18];
+		double[] inp = new double[CanvasFrame.neatConfig.getNumberOfInputs()];
 		
 		int index = 0;
 
-		inp[index++] = (double)velX/MAX_VEL;
-		inp[index++] = (double)velY/MAX_VEL;
+		Vector velocityVector = Vector.normalize(new Vector(velX,velY));
 		
-		Vertex v = (Vertex)closest[1];
-		Vector closestVector = null;
+		inp[index++] = 2*(Math.sqrt((velX*velX) + (velY*velY))/MAX_VEL)-1;
+		inp[index++] = Math.cos(velocityVector.getAngle());
+		inp[index++] = Math.sin(velocityVector.getAngle());
 		
-		if (v != null) {
-			closestVector = new Vector(v.x-getCenter().x, v.y-getCenter().y);
-			
-			double angleFirst = closestVector.getAngle();
-			double vDir = ((Asteroid)closest[0]).getDir().getAngle();
-			inp[index++] = Math.cos(angleFirst);
-			inp[index++] = Math.sin(angleFirst);
-			
-			inp[index++] = Math.cos(vDir);
-			inp[index++] = Math.sin(vDir);
-			
-			inp[index++] = (2*(WHISKER_LENGTH-Math.min(closestVector.getLength(), WHISKER_LENGTH))-(WHISKER_LENGTH))/WHISKER_LENGTH;
-		}else {
-			inp[index++] = 0;
-			inp[index++] = 0;
-			inp[index++] = 0;
-			inp[index++] = 0;
-			inp[index++] = -1;
-		}
-		
-		/*
-		Vertex v1 = (Vertex)secondClosest[1];
-		Vector secondClosestVector = null;
-		
-		if (v1 != null) {
-			secondClosestVector = new Vector(v1.x-getCenter().x, v1.y-getCenter().y);
-			
-			double angleSecond = secondClosestVector.getAngle();
-			double vDir = ((Asteroid)secondClosest[0]).getDir().getAngle();
-//			inp[index++] = Math.cos(angleSecond);
-//			inp[index++] = Math.sin(angleSecond);
-//			 
-//			inp[index++] = Math.cos(vDir);
-//			inp[index++] = Math.sin(vDir);
-//			 
-//			inp[index++] = (2*(WHISKER_LENGTH-Math.min(secondClosestVector.getLength(), WHISKER_LENGTH))-(WHISKER_LENGTH))/WHISKER_LENGTH;
-		}else {
-//			inp[index++] = 0;
-//			inp[index++] = 0;
-//			inp[index++] = 0;
-//			inp[index++] = 0;
-//			inp[index++] = -1;
-		}
-		*/
-		
+		// Player Direction
 		inp[index++] = Math.cos(direction.getAngle());
 		inp[index++] = Math.sin(direction.getAngle());
 				
 		for (int i = 0; i < intersectionAsteroids.length; i++)
 			inp[index++] = (2*(WHISKER_LENGTH-intersectionAsteroids[i])-(WHISKER_LENGTH))/WHISKER_LENGTH;
 		
-		inp[index++] = (2*(counterForShooting/shootingRate))-1;
+		inp[index++] = 2*(counterForShooting/(double)shootingRate)-1;
 		
 		return inp;
 		
@@ -597,11 +417,8 @@ public class Player extends GameObject {
 		
 	}
 	
-	public void rotate(boolean isClockwise, boolean accelerated) {
-		
-		hasRotated = true;
-		rotateTime += 0.01;
-		
+	public void rotate(boolean isClockwise) {
+				
 		float actualAngle = -angle;
 		if (isClockwise)
 			actualAngle = angle;
@@ -685,15 +502,9 @@ public class Player extends GameObject {
 				corner1 = new Vertex(back1Vector),
 				corner2 = new Vertex(back2Vector);
 		
-//		front.color = Color.GREEN;
-		
 		Vertex shipCenter = new Vertex(frontVector.x+(direction.getCounterVector().x*size/2f),frontVector.y+(direction.getCounterVector().y*size/2f));
-//		shipCenter.color = Color.YELLOW;
 		
 		Color colorOfShip = new Color(34,189,150);
-
-		if (best)
-			colorOfShip = new Color(237, 206, 52);
 		
 		front.color = corner1.color = corner2.color = shipCenter.color = colorOfShip;
 		
@@ -711,8 +522,6 @@ public class Player extends GameObject {
 
 		randomizeDirection();
 		
-		hasRotated = false;
-		rotateTime = 0;
 		lifeSpan = LIFE_SPAN;
 		highestLifeSpan = 0;
 		minLifeSpan = lifeSpan;
@@ -721,10 +530,6 @@ public class Player extends GameObject {
 		rewardOfDistance = 0;
 				
 		lastBulletHit = false;
-		
-		isolatedScore = 0;
-		isolatedTimer = 0;
-		hasIsolated = false;
 		
 		shootComboCounter = 0;
 		
@@ -736,8 +541,6 @@ public class Player extends GameObject {
 		evadingTime = 0;
 		dangerLevelEscaping = 0;
 		inDangerShouldEvade = false;
-		
-		lastingReward = 0;
 		
 		noDangerTimes = 0;
 		noDangerTimesCount = 0;
@@ -757,8 +560,9 @@ public class Player extends GameObject {
 		velX = 0;
 		velY = 0;
 		
-		penaltyCounter = new double[4];
-		totalPenalty = 1;
+		shootingRate = DEFAULT_SHOOTING_RATE;
+		
+		cooldownShot = 0;
 		
 		createVertices();
 		
@@ -774,7 +578,6 @@ public class Player extends GameObject {
 				isAlive = false;
 				CanvasFrame.numberOfDeadAgents++;
 				go.elliminate();
-				fitness *= 0.8d;
 				break;
 			}
 		}
@@ -783,7 +586,7 @@ public class Player extends GameObject {
 			gameObjectHandler.setIsActive(isAlive);
 			gameObjectHandler.onlyPlayer();
 			accu_fitness += fitness;
-			agent.setFitness(accu_fitness);
+			agent.setFitness(accu_fitness/(double)CanvasFrame.EVALUATE_X_GENERATION);
 			if (!Driver.AI)
 				startOver();
 		}
@@ -813,7 +616,7 @@ public class Player extends GameObject {
 		return false;
 	}
 	
-	public Object[] getClosest() {
+	private Object[] getClosest() {
 	
 		Vertex vMin = null;
 		Asteroid ast = null;
@@ -827,7 +630,7 @@ public class Player extends GameObject {
 			
 			for (Vertex vertex: asteroid.getVertecies()) {
 	
-				Vertex closest = getClosest(vertex);
+				Vertex closest = getClosest(vertex, asteroid);
 				double closestDist = getCenter().getDistance(closest);
 				if (closestDist < min_dist) {
 					vMin = closest;
@@ -847,7 +650,9 @@ public class Player extends GameObject {
 		
 	}
 	
-	public Object[] getSecondClosest() {
+	// Use it if you wish to improve the AI
+	@SuppressWarnings("unused")
+	private Object[] getSecondClosest() {
 		
 		Vertex clo = (Vertex)closest[1];
 		
@@ -868,7 +673,7 @@ public class Player extends GameObject {
 			
 			for (Vertex vertex: asteroid.getVertecies()) {
 				
-				Vertex secClosest = getClosest(vertex);
+				Vertex secClosest = getClosest(vertex, asteroid);
 				double dist = getCenter().getDistance(secClosest);
 				if (dist < min_dist && dist > (double)closest[2]) {
 					vMin = secClosest;
@@ -887,88 +692,9 @@ public class Player extends GameObject {
 		
 	}
 	
-	public int getEdgeThreat() {
-		
-		Point p = getCenter().getPoint();
-		Rectangle2D.Double criticalRect = null;
-		int count = 0;
-		
-		if (topThreatBox.contains(p))
-			criticalRect = downThreatBox;
-		else if (downThreatBox.contains(p))
-			criticalRect = topThreatBox;
-		else if (rightThreatBox.contains(p))
-			criticalRect = leftThreatBox;
-		else if (leftThreatBox.contains(p))
-			criticalRect = rightThreatBox;
-		else return 0;
-		
-		for (int i = 0; i < gameObjectHandler.size(); i++) {
-			if ( !(gameObjectHandler.get(i) instanceof Asteroid)) continue;
-			
-			Asteroid asteroid = (Asteroid) gameObjectHandler.get(i);
-			
-			for (Vertex vertex: asteroid.getVertecies()) {
-					if (criticalRect.contains(vertex.getPoint())) {
-						count++;
-						break;
-					}
-			}
-			
-		}
-		
-		if (count > 0)
-			return 1;
-		else return 0;
-		
-	}
-	
-	private void getWhiskerCollision() {
-		
-		initWhiskers();
-		
-		for (int j = 0; j < whiskers.length; j++) {
-			
-			float dist = WHISKER_LENGTH;
-
-			for (int i = 0; i < gameObjectHandler.size(); i++) {
-			
-			if (!(gameObjectHandler.get(i) instanceof Asteroid))
-				continue;
-			
-			Asteroid ast = (Asteroid) gameObjectHandler.get(i);
-
-				for (int k = 0; k < ast.getVertecies().size(); k++) {
-					
-					Vertex v1 = ast.getVertecies().get(k),
-							v2 = ast.getVertecies().get((k+1)%ast.getVertecies().size());
-					
-					Line2D.Float line = new Line2D.Float(v1.x,v1.y,v2.x,v2.y);
-										
-					if (whiskers[j].intersectsLine(line)) {
-						
-						float distance = (float)(WHISKER_LENGTH*Vector.intersectionRatio(whiskers[j],line));
-												
-						if (dist > distance)
-							dist = distance;
-						
-					}
-										
-				}
-				
-				
-			}
-			
-			intersectionAsteroids[j] = dist;
-			
-		}
-		
-	}
-
 	private void getWhiskerCollisionOptimized() {
 		
-		initWhiskers();
-		
+		updateWhiskers(true);
 		float width = GameplayBox.boxWidth,
 				height = GameplayBox.boxHeight;
 		
@@ -981,20 +707,22 @@ public class Player extends GameObject {
 			for (int j = 0; j < whiskers.length; j++) {
 				
 				for (int k = 0; k < ast.getVertecies().size(); k++) {
+				
+					float w = ast.getWidth(), h = ast.getHeight();
 					
 					Vertex v1 = ast.getVertecies().get(k),
 							v2 = ast.getVertecies().get((k+1)%ast.getVertecies().size());
 				
 					Line2D.Float line = new Line2D.Float(v1.x,v1.y,v2.x,v2.y);
-					Line2D.Float lineUp = new Line2D.Float(v1.x,v1.y-height,v2.x,v2.y-height);
-					Line2D.Float lineDown = new Line2D.Float(v1.x,v1.y+height,v2.x,v2.y+height);
-					Line2D.Float lineRight = new Line2D.Float(v1.x+width,v1.y,v2.x+width,v2.y);
-					Line2D.Float lineLeft = new Line2D.Float(v1.x-width,v1.y,v2.x-width,v2.y);
+					Line2D.Float lineUp = new Line2D.Float(v1.x,v1.y-height-h,v2.x,v2.y-height-h);
+					Line2D.Float lineDown = new Line2D.Float(v1.x,v1.y+height+h,v2.x,v2.y+height+h);
+					Line2D.Float lineRight = new Line2D.Float(v1.x+width+w,v1.y,v2.x+width+w,v2.y);
+					Line2D.Float lineLeft = new Line2D.Float(v1.x-width-w,v1.y,v2.x-width-w,v2.y);
 				
-					Line2D.Float lineUpRight = new Line2D.Float(v1.x+width,v1.y-height,v2.x+width,v2.y-height);
-					Line2D.Float lineUpLeft = new Line2D.Float(v1.x-width,v1.y-height,v2.x-width,v2.y-height);
-					Line2D.Float lineDownRight = new Line2D.Float(v1.x+width,v1.y+height,v2.x+width,v2.y+height);
-					Line2D.Float lineDownLeft = new Line2D.Float(v1.x-width,v1.y+height,v2.x-width,v2.y+height);				
+					Line2D.Float lineUpRight = new Line2D.Float(v1.x+width+w,v1.y-height-h,v2.x+width+w,v2.y-height-h);
+					Line2D.Float lineUpLeft = new Line2D.Float(v1.x-width-w,v1.y-height-h,v2.x-width-w,v2.y-height-h);
+					Line2D.Float lineDownRight = new Line2D.Float(v1.x+width+w,v1.y+height+h,v2.x+width+w,v2.y+height+h);
+					Line2D.Float lineDownLeft = new Line2D.Float(v1.x-width-w,v1.y+height+h,v2.x-width-w,v2.y+height+h);				
 					
 					float dist = intersectionAsteroids[j];
 					
@@ -1062,11 +790,13 @@ public class Player extends GameObject {
 						
 		}
 		
+		updateWhiskers(false);
+				
 	}
 
 	private void checkIfInDanger() {
 		
-		float inDangerRangeEscaping = 0.5f*WHISKER_LENGTH;
+		float inDangerRangeEscaping = 0.4f*WHISKER_LENGTH;
 		float inDangerRangeEvading = 0.5f*WHISKER_LENGTH;
 		float thresholdFactor = 0.5f;
 		boolean hasEscaped = true;
@@ -1176,7 +906,7 @@ public class Player extends GameObject {
 			inDangerShouldEscape = false;
 		}
 		
-		if (noDangerTimesCount == 200) {
+		if (noDangerTimesCount == 500) {
 			noDangerTimes++;
 			noDangerTimesCount = 0;
 		}
@@ -1184,37 +914,20 @@ public class Player extends GameObject {
 	}
 	
 	private void rewardForDistanceAndIsolation() {
-				
-		double min = Double.MAX_VALUE;
-		for (int i = 0; i < gameObjectHandler.size(); i++) {
-			if (!(gameObjectHandler.get(i) instanceof Asteroid))
-				continue;
-			Asteroid ast = (Asteroid) gameObjectHandler.get(i);
-			Vector distanceVector = new Vector(ast.getCenter().x-getCenter().x,ast.getCenter().y-getCenter().y);
-			double distance = distanceVector.getLength();
-			
-			if (distance < min)
-				min = distance;
-
-		}
-
-		double upperThreshold = 0.3d;
 		
-		if (min > WHISKER_LENGTH*upperThreshold && !hasIsolated && !hasVelocity()) {
-			isolatedTimer++;
-			if (isolatedTimer >= 200) {
-				isolatedScore++;
-				hasIsolated = true;
-				isolatedTimer = 0;
-			}
-		}else {
-			isolatedTimer = 0;
-			hasIsolated = false;
-		}
+		if (closest == null || closest[2] == null)
+			return;
+		
+		double dist = (double)closest[2];
+		double threshold = WHISKER_LENGTH*0.4d;
+		
+		if (dist >= threshold)
+			rewardOfDistance += UNIT;
+		else rewardOfDistance += Math.pow((dist/threshold),2)*UNIT;
 		
 	}
 	
-	private Vertex getClosest(Vertex vertex) {
+	private Vertex getClosest(Vertex vertex, Asteroid asteroid) {
 		
 		Vertex center = getCenter();
 	    
@@ -1222,14 +935,14 @@ public class Player extends GameObject {
 	    double min_dist = center.getDistance(vertex);
 
 	    Vertex[] wrappedPositions = {
-	        new Vertex(vertex.x, vertex.y - GameplayBox.height),           // Up
-	        new Vertex(vertex.x, vertex.y + GameplayBox.height),           // Down
-	        new Vertex(vertex.x + GameplayBox.width, vertex.y),            // Right
-	        new Vertex(vertex.x - GameplayBox.width, vertex.y),            // Left
-	        new Vertex(vertex.x + GameplayBox.width, vertex.y - GameplayBox.height),   // UpRight
-	        new Vertex(vertex.x - GameplayBox.width, vertex.y - GameplayBox.height),   // UpLeft
-	        new Vertex(vertex.x + GameplayBox.width, vertex.y + GameplayBox.height),   // DownRight
-	        new Vertex(vertex.x - GameplayBox.width, vertex.y + GameplayBox.height)    // DownLeft
+	        new Vertex(vertex.x, vertex.y - GameplayBox.height - asteroid.getHeight()),           // Up
+	        new Vertex(vertex.x, vertex.y + GameplayBox.height + asteroid.getHeight()),           // Down
+	        new Vertex(vertex.x + GameplayBox.width + asteroid.getWidth(), vertex.y),            // Right
+	        new Vertex(vertex.x - GameplayBox.width - asteroid.getWidth(), vertex.y),            // Left
+	        new Vertex(vertex.x + GameplayBox.width + asteroid.getWidth(), vertex.y - GameplayBox.height - asteroid.getHeight()),   // UpRight
+	        new Vertex(vertex.x - GameplayBox.width - asteroid.getWidth(), vertex.y - GameplayBox.height - asteroid.getHeight()),   // UpLeft
+	        new Vertex(vertex.x + GameplayBox.width + asteroid.getWidth(), vertex.y + GameplayBox.height + asteroid.getHeight()),   // DownRight
+	        new Vertex(vertex.x - GameplayBox.width - asteroid.getWidth(), vertex.y + GameplayBox.height + asteroid.getHeight())    // DownLeft
 	    };
 
 	    for (Vertex wrapped : wrappedPositions) {

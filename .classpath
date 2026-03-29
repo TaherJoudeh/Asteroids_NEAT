@@ -6,6 +6,6 @@
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Users/taher/workspace_2/NEAT4J/neat4j.jar"/>
+	<classpathentry kind="lib" path="C:/My Stuff/Programming/My Java Libraries/NEAT4J/neat4j_opt.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

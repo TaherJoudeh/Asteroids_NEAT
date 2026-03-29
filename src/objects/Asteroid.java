@@ -141,6 +141,7 @@ public class Asteroid extends GameObject {
 		height = getLastVertexYCoordinate() - getFirstVertexYCoordinate();
 	}
 	
+	@SuppressWarnings("unused")
 	private Rectangle2D.Float getBounds() {
 		return new Rectangle2D.Float(getFirstVertexXCoordinate(), getFirstVertexYCoordinate(),
 				width, height);

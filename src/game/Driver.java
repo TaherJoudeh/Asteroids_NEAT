@@ -6,7 +6,7 @@ public class Driver {
 
 	public final static boolean fullScreen = true,
 			AI = true,
-			VALIDATE = false;
+			VALIDATE = true;
 	
 	public static void main(String[] args) {
 
