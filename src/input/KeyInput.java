@@ -92,7 +92,7 @@ public class KeyInput extends KeyAdapter {
 			CanvasFrame.paused = !CanvasFrame.paused;
 		
 		if (key == KeyEvent.VK_H)
-			CanvasFrame.showHitBox = !CanvasFrame.showHitBox;
+			CanvasFrame.showWhiskers = !CanvasFrame.showWhiskers;
 		
 		if (Driver.AI) {
 		
@@ -100,9 +100,6 @@ public class KeyInput extends KeyAdapter {
 				worlds[CanvasFrame.currentWorldIndex].getPlayer().kill();
 				CanvasFrame.numberOfDeadAgents++;
 			}
-			
-			if (key == KeyEvent.VK_B)
-				CanvasFrame.showBoxes = !CanvasFrame.showBoxes;
 			
 			if (key == KeyEvent.VK_E)
 				CanvasFrame.showDisabled = !CanvasFrame.showDisabled;

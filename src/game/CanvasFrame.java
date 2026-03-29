@@ -57,7 +57,7 @@ public class CanvasFrame extends Canvas implements Runnable {
 	private int seed_counter = 0;
 	private long seed;
 	
-	public static boolean showHitBox = false, showBoxes = false,
+	public static boolean showWhiskers = false,
 			paused = false, recievingInputs = true, rendering = true, showGraph = false,
 			showDisabled = false;
 	public static GraphType currentGraphShown = GraphType.NODE;
@@ -341,19 +341,6 @@ public class CanvasFrame extends Canvas implements Runnable {
 			String elitism = "Elitism: " + neatConfig.getElitism();
 			fontWidth = g2d.getFontMetrics().stringWidth(elitism);
 			g2d.drawString(elitism, GameplayBox.endX-fontWidth, GameplayBox.endY+g2d.getFontMetrics().getHeight());
-			
-			
-			if (showBoxes) {
-				g2d.setColor(new Color(1,0,0,0.15f));
-				g2d.fill(GameplayBox.topBox);
-				g2d.fill(GameplayBox.bottomBox);
-				g2d.fill(GameplayBox.rightBox);
-				g2d.fill(GameplayBox.leftBox);
-				g2d.fill(GameplayBox.topRightCornerBox);
-				g2d.fill(GameplayBox.topLeftCornerBox);
-				g2d.fill(GameplayBox.bottomRightCornerBox);
-				g2d.fill(GameplayBox.bottomLeftCornerBox);
-			}
 			
 		}
 		

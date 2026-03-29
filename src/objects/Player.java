@@ -321,7 +321,7 @@ public class Player extends GameObject {
 		Color aproximityColor = new Color(1f,0f,0f,1f);
 		g2d.setColor(aproximityColor);
 		
-		if (CanvasFrame.showHitBox) {
+		if (CanvasFrame.showWhiskers) {
 			
 			g2d.setColor(new Color(255,0,0,50));
 			
