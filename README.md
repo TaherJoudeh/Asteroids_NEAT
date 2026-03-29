@@ -6,7 +6,12 @@ An AI agent that learns to play the classic **Asteroids** arcade game using the 
 
 ## Demo
 
-> *(Add a GIF or link to your demo video here)*
+> ![Asteroids_NEAT-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/4bcce618-475b-49d6-b0e8-90c2316a8261)
+>
+*The Graph System*
+> <img width="1920" height="1080" alt="Screenshot 2026-03-29 23-46-47" src="https://github.com/user-attachments/assets/48db076d-bf00-45d4-b035-1c84a16b6d60" />
+> <img width="1920" height="1080" alt="Screenshot 2026-03-29 23-43-35" src="https://github.com/user-attachments/assets/6a00287e-def5-4a88-86c2-5ed68a24f7c7" />
+
 
 ---
 
