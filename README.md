@@ -192,7 +192,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 **Taher Joudeh**
 - GitHub: [@TaherJoudeh](https://github.com/TaherJoudeh)
-- LinkedIn: *(add your LinkedIn URL)*
+- LinkedIn: [Taher Joudeh](https://www.linkedin.com/in/taher-joudeh-137bt731/)
 
 ---
 
