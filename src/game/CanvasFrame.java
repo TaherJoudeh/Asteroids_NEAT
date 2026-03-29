@@ -403,7 +403,8 @@ public class CanvasFrame extends Canvas implements Runnable {
 			for (int i = 0; i < worlds.length; i++)
 				worlds[i].getPlayer().resetAccuFitness();
 
-			GenomeFileHandler.saveGenome(agent.getGenome(), "C:\\Users\\taher\\eclipse-workspace\\Asteroids_NEAT\\Genomes",((neat.getGeneration()-1)+""));
+			if (!Driver.VALIDATE)
+				GenomeFileHandler.saveGenome(agent.getGenome(), "C:\\Users\\taher\\eclipse-workspace\\Asteroids_NEAT\\Genomes",((neat.getGeneration()-1)+""));
 		
 			nodeGraph.addValue(neat.getGeneration()-1, neat.getPopulationFitness());
 			rectangleGraph.addValue(neat.getGeneration()-1, neat.getPopulationFitness());
